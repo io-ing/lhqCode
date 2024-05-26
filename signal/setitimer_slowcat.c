@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #define CPS 10
 #define BUFSIZE CPS 
@@ -20,7 +21,7 @@ void alrm_handler(int sigNum)
     loop = 1;
     /* 注意：在笔者的环境下接收到多个信号会恢复信号的默认动作，所以需要重新注册 */
     signal(SIGALRM, alrm_handler);
-    alarm(1);
+//    alarm(1);
 }
 
 void main(int argc, char **argv)
@@ -28,6 +29,7 @@ void main(int argc, char **argv)
     int fda, fdb = 1;
     int len, ret;
     char buf[BUFSIZE];
+    struct itimerval itv;
 
     if (argc != 2)
     {
@@ -36,7 +38,17 @@ void main(int argc, char **argv)
     }
 
     signal(SIGALRM, alrm_handler);
-    alarm(1);
+//    alarm(1);
+    itv.it_interval.tv_sec = 1;
+    itv.it_interval.tv_usec = 0;
+    itv.it_value.tv_sec = 1;
+    itv.it_value.tv_usec = 0;
+
+    if (setitimer(ITIMER_REAL, &itv, NULL) < 0)
+    {
+        perror("setitimer()");
+        exit(1);
+    }
 
     do
     {
