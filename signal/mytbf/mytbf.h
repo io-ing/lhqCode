@@ -1,9 +1,6 @@
 #ifndef MY_TBF__
 #define MY_TBF__
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #define MYTBF_MAX 1024
 
 typedef void mytbf_t;

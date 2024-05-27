@@ -11,9 +11,7 @@
 #define CPS 10
 #define BUFSIZE CPS 
 
-static int loop = 0;
-// static volatile sig_atomic_t loop = 0;
-// 保证这条指令的取值和赋值操作都是一条机器指令完成的
+static volatile loop = 0;
 
 void alrm_handler(int sigNum)
 {
@@ -53,11 +51,9 @@ void main(int argc, char **argv)
 
     while(1)
     {
-        // 判断完后 alarm 信号到来程序停在了 pause 上，无伤大雅，因为是令牌通，下次循环两次即可
         /* 注意：如果没有 pause，程序会处于忙等，浪费资源 */
         while(!loop)
             pause();
-        // 使用精简指令集 token-- 可能不是由一条指令完成的
         loop = 0;
 
         while ((len = read(fda, buf, BUFSIZE)) < 0)

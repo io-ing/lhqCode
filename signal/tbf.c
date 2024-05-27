@@ -12,7 +12,8 @@
 #define BUFSIZE CPS 
 
 static int loop = 0;
-static int token = 0;
+/* 保证这条指令的取值和赋值操作都是一条机器指令完成的 */
+static volatile sig_atomic_t token = 0;
 static int tokenMax = 100;
 
 void alrm_handler(int sigNum)
@@ -57,9 +58,11 @@ void main(int argc, char **argv)
 
     while(1)
     {
+        /* 判断完后 alarm 信号才到来程序停在了 pause 上无伤大雅，因为是令牌桶，下次循环两次即可 */
         /* 注意：如果没有 pause，程序会处于忙等，浪费资源 */
         while(token <= 0)
             pause();
+        /* 使用精简指令集的芯片 token-- 可能不是由一条指令完成的，token 需要加 sig_atomic_t 修饰 */
         token--;
 //        loop = 0;
 

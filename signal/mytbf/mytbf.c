@@ -45,7 +45,7 @@ static void module_unload()
     signal(SIGALRM, alrm_handler_save);
     alarm(0);
 
-    /* 不需要判断，free 的对象是 vois * 不会出错 */
+    /* 不需要判断，free 的对象是 void * 不会出错 */
     for (i=0; i<MYTBF_MAX; i++)
         free(job[i]);
 }
