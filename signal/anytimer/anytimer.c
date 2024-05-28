@@ -115,10 +115,7 @@ int at_addjob(int sec, at_jobfunc_t *jobp, void *arg)
     return pos;
 }
 
-// 为什么要有wait操作：把异步操作同步化
-// 任务不能自行消亡，为什么
-// 既然任务不能自行消亡，那么凭什么遍历任务的时候不再看他，增加一个 flag
-//     int status; // 任务状态: 0 - running, 1 - cancelled, 2 - completed
+/* 任务不能自行消亡，需要遍历任务的时候不再看他，可以增加一个 status */
 int at_canceljob(int id)
 {
     struct anytimer_st *me;
