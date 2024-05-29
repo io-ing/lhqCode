@@ -29,7 +29,12 @@ int main(int argc, char **argv)
             sleep(1);
         }
         write(1, "\n", 1);
-//        sigprocmask(SIG_UNBLOCK, &set, NULL);
+
+        /* 解除对SIGINT信号的阻塞，有两种方式： */
+        /* 第一种方式：简单解除阻塞             */
+        /* sigprocmask(SIG_UNBLOCK, &set, NULL);*/
+
+        /* 第二种方式：恢复之前的信号屏蔽状态   */
         sigprocmask(SIG_SETMASK, &oset, NULL);
     }
 
