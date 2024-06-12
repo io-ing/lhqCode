@@ -54,5 +54,10 @@ int main()
         pthread_join(tid[i], NULL);
     }
 
+    for (i=0; i<THRNUM; i++)
+    {
+        pthread_mutex_destroy(mut+i);
+    }
+
     exit(0);
 }
