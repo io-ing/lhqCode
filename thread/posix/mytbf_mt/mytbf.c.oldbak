@@ -1,0 +1,226 @@
+#include <stdio.h>
+#include <stdlib.h>
+//#include <signal.h>
+#include <unistd.h>
+#include <errno.h>
+#include <pthread.h>
+#include <string.h>
+
+#include "mytbf.h"
+
+static pthread_mutex_t mut_job = PTHREAD_MUTEX_INITIALIZER;
+static struct mytbf_st *job[MYTBF_MAX]; 
+static int inited = 0;
+static pthread_t tid_alrm;
+static pthread_once_t init_once = PTHREAD_ONCE_INIT;
+//typedef void (*sighandler_t)(int);
+//static sighandler_t alrm_handler_save; 
+
+struct mytbf_st
+{
+    int cps;
+    int burst;
+    int token;
+    int pos;
+    pthread_mutex_t mut;
+};
+
+//static void alrm_handler(int signum)
+static void *thr_alrm(void *thr_num)
+{
+    int i;
+
+//    alarm(1);
+
+    while(1)
+    {
+        pthread_mutex_lock(&mut_job);
+        for (i=0; i<MYTBF_MAX; i++)
+        {
+            if (job[i] != NULL)
+            {
+                pthread_mutex_lock(&job[i]->mut);
+                job[i]->token += job[i]->cps;
+                if (job[i]->token > job[i]->burst)
+                    job[i]->token = job[i]->burst;
+                pthread_mutex_unlock(&job[i]->mut);
+            }
+        }
+        pthread_mutex_unlock(&mut_job);
+    //    usleep(1000);
+        sleep(1);
+    }
+
+    pthread_exit(NULL);
+}
+
+/* 不能放在 destory 中调用，destory 是销毁一个令牌桶的 */
+static void module_unload()
+{
+    int i;
+
+//    signal(SIGALRM, alrm_handler_save);
+//    alarm(0);
+    pthread_cancel(tid_alrm);
+    pthread_join(tid_alrm, NULL);
+
+    /* 在这里加锁解锁没有必要 todo */
+    /* 不需要判断，free 的对象是 void * 不会出错 */
+    for (i=0; i<MYTBF_MAX; i++)
+    {
+    //    free(job[i]);
+        mytbf_destory(job[i]);
+    }
+    /* 销毁 mut_job 不能在 destroy 中，mut_job 是全局变量，而 destroy 是销毁一个令牌桶 */
+    pthread_mutex_destroy(&mut_job);
+}
+
+static void module_load()
+{
+//    alrm_handler_save = signal(SIGALRM, alrm_handler);
+//    alarm(1); 
+    int errno;
+
+    errno = pthread_create(&tid_alrm, NULL, thr_alrm, NULL);
+    if (errno < 0)
+    {
+        fprintf(stderr, "pthread_create(): %s\n", strerror(errno));
+        exit(1);
+    }
+
+    atexit(module_unload);
+}
+
+/*
+    这个函数需要加锁使用，但是在 init 中已经加锁了，当前环境下不能二次加锁
+    所以为了防止别人不加锁使用，在名字上加上 unlocked 作为提示
+*/
+static int get_free_pos_unlocked()
+{
+    int i;
+
+    for (i=0; i<MYTBF_MAX; i++)
+    {
+        if (job[i] == NULL)
+            return i;
+    }
+    return -1;
+}
+
+mytbf_t *mytbf_init(int cps, int burst)
+{
+    struct mytbf_st *me;
+    int pos;
+
+// todo 这里存在的问题
+/*
+    lock();
+    if (!inited)
+    {
+        module_load();
+        inited = 1;
+    }
+    unlock();
+*/
+    pthread_once(&init_once, module_load);
+/*
+    想把 module_load 当成构造函数使用，没有 init 的时候就调用
+    可以把 module_load 交给用户去使用，但并不好，不要把过多的操作交给用用户
+*/
+
+    me = malloc(sizeof(*me));
+    if (me == NULL)
+        return NULL;
+
+    me->cps = cps;
+    me->burst = burst;
+    me->token = 0;
+    pthread_mutex_init(&me->mut, NULL);
+
+    pthread_mutex_lock(&mut_job);
+    pos = get_free_pos_unlocked();
+    if (pos == -1)
+    {
+        /* 这两行代码有顺序么？ */
+        pthread_mutex_unlock(&mut_job);
+        free(me);
+        return NULL;
+    }
+
+    me->pos = pos;
+
+    job[pos] = me;
+    pthread_mutex_unlock(&mut_job);
+
+    return me;
+}
+
+static int min(int a, int b)
+{
+    if (a<b)
+        return a;
+    return b;
+}
+
+int mytbf_fetchtoken(mytbf_t *ptr, int size)
+{
+    struct mytbf_st *me = ptr;
+    int n;
+
+    if (size < 0)
+        return -EINVAL;
+    if (ptr == NULL)
+        return -EINVAL;
+
+    pthread_mutex_lock(&me->mut);
+    while (me->token <= 0)
+    {
+        pthread_mutex_unlock(&me->mut);
+        sched_yield();
+        pthread_mutex_lock(&me->mut);
+    //    pause();
+    }
+
+    /*
+        防止两个线程使用 token 冲突，需要加互斥量，但是用 mut_job 不合适
+    */
+    n = min(me->token, size);
+    me->token -= n;
+    pthread_mutex_unlock(&me->mut);
+
+    return n;
+}
+
+int mytbf_returntoken(mytbf_t *ptr, int size)
+{
+    struct mytbf_st *me = ptr;
+
+    if (size <= 0)
+        return -EINVAL;
+    if (ptr == NULL)
+        return -EINVAL;
+
+    me->token += size;
+
+    pthread_mutex_lock(&me->mut);
+    if (me->token > me->burst)
+        me->token = me->burst;
+    pthread_mutex_unlock(&me->mut);
+
+    return size;
+}
+
+int mytbf_destory(mytbf_t *ptr)
+{
+    struct mytbf_st *me = ptr;
+
+    pthread_mutex_lock(&mut_job);
+    job[me->pos] = NULL;
+    pthread_mutex_unlock(&mut_job);
+
+    /* 也可以 free(ptf); */
+    pthread_mutex_destroy(&me->mut);
+    free(me);
+
+    return 0;
+}

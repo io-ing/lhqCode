@@ -86,7 +86,7 @@ int main()
             pthread_mutex_unlock(&mut_num);
             sched_yield();
             pthread_mutex_lock(&mut_num);
-#endif
+#else
         }
         num = i;
         pthread_cond_signal(&cond_num);
@@ -108,7 +108,7 @@ int main()
     for (i=0; i<THRNUM; i++)
         pthread_join(tid[i], NULL);
 
-    pthread_mutex_destroy(&mut_num);
     pthread_cond_destroy(&cond_num);
+    pthread_mutex_destroy(&mut_num);
     exit(0);
 }
