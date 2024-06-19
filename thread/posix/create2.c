@@ -1,35 +1,41 @@
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <unistd.h>
 
-void* thread_function(void* arg)
+static void *thr_func(void *arg)
 {
-    printf("Thread is running!\n");
-    ptheard_exit(NULL);
+    while (1)
+        pause();
+
+    pthread_exit(NULL);
 }
 
 int main()
 {
+    int i;
     pthread_t tid;
     int err;
+    pthread_attr_t attr;
 
-    puts("Begin!");
-    err = pthread_create(&tid, NULL, thread_function, NULL);
-    if (err != 0)
+    pthread_attr_init(&attr);
+
+    pthread_attr_setstacksize(&attr, 1024*1024);
+    /* return val */
+
+    for (i=0; ; i++)
     {
-        fprintf(stderr, "pthread_create(): %s\n", strerror(err));
-        exit(1);
+        err = pthread_create(&tid, &attr, thr_func, NULL);
+        if (err < 0)
+        {
+            fprintf(stderr, "pthread_create(): %s\n", strerror(err));
+            break;
+        }
     }
+    printf("i = %d\n", i);
 
-    /* 使用 pthread_join 等待线程结束，确保线程运行完成 */
-    err = pthread_join(tid, NULL);
-    if (err != 0)
-    {
-        fprintf(stderr, "pthread_join(): %s\n", strerror(err));
-        exit(1);
-    }
+    pthread_attr_destroy(&attr);
 
-    puts("End!");
-
-    exit(0);
+    exit(1);
 }
