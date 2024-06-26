@@ -8,8 +8,11 @@ struct mypipe_st
 {
     int head;
     int tail;
+// data datasize
     char pipe[PIPESIZE];
     int pipesize;
+// count_rd;
+// count_wr;
     int writeCount;
     int readCount;
     pthread_mutex_t mut;
@@ -26,7 +29,7 @@ mypipe_t *mypipe_init()
 
     me->head = 0;
     me->tail = 0;
-    /* 注意：pipe 不用初始化 */
+    /* 注意：data 不用初始化，data 是一个数组，把他初始化为什么都不算特殊 */
     me->pipesize = 0;
     me->writeCount = 0;
     me->readCount = 0;
@@ -36,24 +39,36 @@ mypipe_t *mypipe_init()
     return me;
 }
 
-int mypipe_read(mypipe_t *ptr, void *buff, size_t size)
+static int mypipe_readbyte_unlocked(struct mypipe_st *me, char *datap)
+{
+    *datap = me->data[me->head];
+    me->head = next(me->head);
+    me->pipesize--;
+    return 0;
+}
+
+int mypipe_read(mypipe_t *ptr, void *buff, size_t count)
 {
     struct mypipe_st *me = ptr;
     int i;
 
     pthread_mutex_lock(&me->mut);
-// why count > 0
-    while (me->pipesize<=0 || me->writeCount<=0)
+    /* 当管道中没有数据但是有读者才会等待，也就是说管道中的数据和写着发生改变才会继续 */
+    while (me->pipesize<=0 && me->writeCount>0)
         pthread_cond_wait(&me->conf, &me->mut);
 
-    for (i=0; i<size; i++)
+    for (i=0; i<count; i++)
     {
         if (me->pipesize <= 0)
             break;
+#if 0
+            mypipe_readbyte_unlocked(me, buf+1);
+#else
         buff[i] = me->pipe[me->head];
         //strncpy(buff, me->pipe[me->head], 1);
         me->head = (me->head+1) % PIPESIZE;
         me->pipesize--;
+#endif
     }
 
     /* 通知 write 管道有空余 */
@@ -63,7 +78,7 @@ int mypipe_read(mypipe_t *ptr, void *buff, size_t size)
     return i;
 }
 
-int mypipe_write(mypipe_t *ptr, void *, size_t count)
+int mypipe_write(mypipe_t *ptr, const void *, size_t count)
 {
     struct mypipe_st *me = ptr;
 
@@ -71,6 +86,11 @@ int mypipe_write(mypipe_t *ptr, void *, size_t count)
     while (me->pipesize>=PIPESIZE || me->readCount<=0)
         pthread_cond_wait(&me->cond, &me->mut);
 
+    if (me->pipesize<=0 && me->readCount<=0)
+    {
+        pthread_mutex_unlock(&me->mut);
+        return 0;
+    }
     while (i=0; i<count; i++)
     {
         if (me->pipesize >= PIPESIZE)
@@ -87,30 +107,33 @@ int mypipe_write(mypipe_t *ptr, void *, size_t count)
     return i;
 }
 
-void mypipe_destroy(mypipe_t *ptr)
+int mypipe_destroy(mypipe_t *ptr)
 {
     struct mypipe_st *me = ptr;
 
     pthread_mutex_destroy(me->mutex);
     pthread_cond_destroy(me->cond);
     free(me);
+
+    return 0;
 }
 
-int mypipe_register(mypipe_t *ptr, int opt)
+int mypipe_register(mypipe_t *ptr, int opmap)
 {
     struct mypipe_st *me = ptr;
 
     pthread_mutex_lock(&me->mut);
-    if (opt & 1)
+    if (opmap & MYPIPE_READ)
         me->readCount++;
 
-    if (opt & 2)
+    if (opmap & MYPIPE_WRITE)
         me->writeCount++;
 
     /* 确保所有的管道都有一个读者和一个写者 */
     for (me->readCount<=0 || me->writeCount<=0)
         pthread_cond_wait(&me->cond, &me->mut);
 
+    /* 读者/写者发信号告诉阻塞在这里的写者/读者，写在上面/下面都可以 */
     pthread_cond_broadcast(&me->cond);
 
     pthread_mutex_unlock(&me->mut);
@@ -118,16 +141,22 @@ int mypipe_register(mypipe_t *ptr, int opt)
     return 0;
 }
 
-int mypipe_unregister(mypipe_t *ptr, int opt)
+int mypipe_unregister(mypipe_t *ptr, int opmap)
 {
     struct mypipe_st *me = ptr;
 
+    /* if error */
+
     pthread_mutex_lock(&me->mut);
-    if (opt & 1)
+    if (opmap & 1)
         me->readCount--;
 
-    if (opt & 2)
+    if (opmap & 2)
         me->writeCount--;
+
+    /* 可能有多个阻塞在 read 中，需要唤醒 */
+    pthread_cond_broadcast(&me->cond, &me->mut);
+    pthread_mutex_unlock(&me->mut);
 
     return 0;
 }
