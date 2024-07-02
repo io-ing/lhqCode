@@ -42,7 +42,7 @@ int main()
     else
     {
         close(pipefd[0]);
-        /* 父进程从网上收数据，王管道中写 */
+        /* 父进程从网上收数据，往管道中写 */
         close(pipefd[1]);
         wait(NULL);
         exit(0);
