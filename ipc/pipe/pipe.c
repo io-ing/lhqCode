@@ -31,7 +31,6 @@ int main()
     {
         close(pipefd[1]);
         len = read(pipefd[0], buf, sizeof(buf));
-//        puts(buf);
         write(1, buf, len);
         close(pipefd[0]);
         exit(0);
@@ -40,8 +39,8 @@ int main()
     {
         close(pipefd[0]);
         write(pipefd[1], "hello", 5);
-        wait(NULL);
         close(pipefd[1]);
+        wait(NULL);
         exit(0);
     }
 }
