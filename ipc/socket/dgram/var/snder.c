@@ -11,13 +11,28 @@
 int main(int argc, char **argv)
 {
     int sd;
-    struct msg_st sbuf;
+    int size;
+    struct msg_st *sbufp;
     struct sockaddr_in raddr;
     socklen_t msgLen;
 
-    if (argc < 2)
+    if (argc < 3)
     {
         fprintf(stderr, "Usage...\n");
+        exit(1);
+    }
+
+    if (strlen(argv[2]) > NAMEMAX)
+    {
+        fprintf(strerr, "Name is to long!\n");
+        exit(1);
+    }
+
+    size = sizeof(struct msg_st) + strlen(argv[2]);
+    sbufp = malloc(size);
+    if (sbufp == NULL)
+    {
+        perror("malloc()");
         exit(1);
     }
 
@@ -30,16 +45,16 @@ int main(int argc, char **argv)
 
     // bind();
 
-    strncpy(sbuf.name, "Lucy", sizeof(sbuf.name));
-    sbuf.math = htonl(rand() % 100);
-    sbuf.chinese = htonl(rand() % 100);
+    strncpy(sbufp->name, argv[2], sizeof(argv[2]));
+    sbufp->math = htonl(rand() % 100);
+    sbufp->chinese = htonl(rand() % 100);
 
     raddr.sin_family = AF_INET;
     raddr.sin_port = ntohs(atoi(RCVPROT));
     inet_pton(AF_INET, argv[1], &raddr.sin_addr.s_addr);
 
     // msgLen = sizeof(raddr); why?
-    if (sendto(sd, (void *)&sbuf, sizeof(sbuf), 0, (void *)&raddr, sizeof(raddr)) < 0)
+    if (sendto(sd, (void *)sbufp, size, 0, (void *)&raddr, sizeof(raddr)) < 0)
     {
         perror("sendto()");
         exit(1);
