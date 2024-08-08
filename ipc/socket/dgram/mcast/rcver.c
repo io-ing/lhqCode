@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <net/if.h>
 
 #include "proto.h"
 
@@ -24,8 +25,13 @@ int main()
         exit(1);
     }
 
-    int val = 1;
-    if (setsockopt(sd, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) < 0)
+    struct ip_mreqn mreq;
+
+    inet_pton(AF_INET, MGOUP, &mreq.imr_multiaddr);
+    inet_pton(AF_INET, "0.0.0.0", &mreq.imr_address);
+    mreq.imr_ifindex = if_nametoindex("eth0");
+
+    if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
     {
         perror("setsockopt()");
         exit(1);

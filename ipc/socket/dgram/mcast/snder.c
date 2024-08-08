@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 
 #include "proto.h"
 
@@ -22,8 +23,13 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    int val = 1;
-    if (setsockopt(sd, SOL_SOCKET, SO_BROADCAST, &val, sizeof(val)) < 0)
+    struct ip_mreqn mreq;
+
+    inet_pton(AF_INET, MGOUP, &mreq.imr_multiaddr);
+    inet_pton(AF_INET, "0.0.0.0", &mreq.imr_address);
+    mreq.imr_ifindex = if_nametoindex("eth0");
+
+    if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_IF, &mreq, sizeof(mreq)) < 0)
     {
         perror("setsockopt()");
         exit(1);
@@ -37,7 +43,7 @@ int main(int argc, char **argv)
 
     raddr.sin_family = AF_INET;
     raddr.sin_port = ntohs(atoi(RCVPROT));
-    inet_pton(AF_INET, "255.255.255.255", &raddr.sin_addr.s_addr);
+    inet_pton(AF_INET, MGOUP, &raddr.sin_addr.s_addr);
 
     // msgLen = sizeof(raddr); why?
     if (sendto(sd, (void *)&sbuf, sizeof(sbuf), 0, (void *)&raddr, sizeof(raddr)) < 0)

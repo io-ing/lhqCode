@@ -1,6 +1,7 @@
 #ifndef PROTO_H__
 #define PROTO_H__
 
+#define MGOUP "224.2.2.2"
 #define RCVPROT "1989"
 
 #define NAMESIZE 11
