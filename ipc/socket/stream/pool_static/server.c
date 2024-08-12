@@ -22,7 +22,6 @@ void server_job(int sd)
         perror("send()");
         exit(1);
     }
-    sleep(10);
 }
 
 int main()
@@ -32,7 +31,6 @@ int main()
     struct sockaddr_in laddr, raddr;
     socklen_t raddr_len;
     char ipstr[IPSTRSIZE];
-    pid_t pid;
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
     if (sd < 0)
@@ -78,21 +76,7 @@ int main()
         inet_ntop(AF_INET, &raddr.sin_addr, ipstr, IPSTRSIZE);
         printf("%s:%d\n", ipstr, ntohs(raddr.sin_port));
 
-        pid = fork();
-        if (pid < 0)
-        {
-            perror("fork()");
-            exit(1);
-        }
-
-        if (pid == 0)
-        {
-            close(sd);
-            server_job(newsd);
-            close(newsd);
-            exit(0);
-        }
-
+        server_job(newsd);
         close(newsd);
     }
 
