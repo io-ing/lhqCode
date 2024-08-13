@@ -4,11 +4,15 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <arpa/inet.h>
+#include <sys/wait.h>
 
 #include "proto.h"
 
 #define IPSTRSIZE 40
 #define BUFSIZE 1024
+#define PROCNUM 4
+
+static void server_loop(int sd);
 
 void server_job(int sd)
 {
@@ -27,10 +31,9 @@ void server_job(int sd)
 int main()
 {
     int sd;
-    int newsd;
-    struct sockaddr_in laddr, raddr;
-    socklen_t raddr_len;
-    char ipstr[IPSTRSIZE];
+    struct sockaddr_in laddr;
+    int i;
+    pid_t pid;
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
     if (sd < 0)
@@ -61,10 +64,40 @@ int main()
         exit(1);
     }
 
+    for (i=0; i<PROCNUM; i++)
+    {
+        pid = fork();
+        if (pid < 0)
+        {
+            perror("fork()");
+            exit(1);
+        }
+        if (pid == 0)
+        {
+            server_loop(sd);
+            exit(0);
+        }
+    }
+
+    for (i=0; i<PROCNUM; i++)
+        wait(NULL);
+
+    close(sd);
+    exit(0);
+}
+
+static void server_loop(int sd)
+{
+    struct sockaddr_in raddr;
+    socklen_t raddr_len;
+    char ipstr[IPSTRSIZE];
+    int newsd;
+
     raddr_len = sizeof(raddr);
     while(1)
     {
         /* 需要用新的文件描述符接收，否则是假错会覆盖掉当前文件描述符 */
+        /* accept 本身可以实现互斥 */
         newsd = accept(sd, (void *)&raddr, &raddr_len);
         if (newsd < 0)
         {
@@ -74,14 +107,11 @@ int main()
         }
 
         inet_ntop(AF_INET, &raddr.sin_addr, ipstr, IPSTRSIZE);
-        printf("%s:%d\n", ipstr, ntohs(raddr.sin_port));
+        printf("[%d]%s:%d\n", getpid(), ipstr, ntohs(raddr.sin_port));
 
         server_job(newsd);
         close(newsd);
     }
-
-
-    close(sd);
-
-    exit(0);
+    /* 没有必要关，为什么 */
+    // close(sd);
 }
