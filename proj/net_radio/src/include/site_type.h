@@ -5,4 +5,4 @@
 
 typedef uint8_t channel_id_t
 
-#endif
+#endif /* SITE_TYPE_H__ */

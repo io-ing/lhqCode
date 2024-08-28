@@ -3,8 +3,8 @@
 
 #include "site_type.h"
 
-#define MULTI_GROUP     "224.2.2.2"
-#define RECEICE_PROT    "1989"
+#define DEFAULT_MULTI_GROUP     "224.2.2.2"
+#define DEFAULT_RECEICE_PROT    "1989"
 
 #define LIST_CHANNEL_ID 0
 
@@ -24,20 +24,20 @@ struct msg_channel_st
 #define MSG_CHANNEL_MAX (65536 - 20 - 8)
 #define MSG_DATA_MAX    (MSG_CHANNEL_MAX - sizeof(channel_id_t));
 
+#define MSG_LIST_MAX    (65536 - 20 - 8)
+#define MSG_ENTRY_MAX   (MSG_LIST_MAX - sizeof(channel_id_t))
+
 struct msg_listentry_st
 {
-    channel_id_t id;
+    channel_id_t channel_id;
     uint8_t description[1];
 }__attribute__((packed));
 
 Sstruct msg_list_st
 {
     /* must be LIST_CHANNEL_ID */
-    channel_id_t id;
+    channel_id_t channel_id;
     struct msg_listentry_st entry[1];
 }__attribute__((packed));
 
-#define MSG_LIST_MAX (65536 - 20 - 8)
-#define MSG_ENTRY_MAX (MSG_LIST_MAX - sizeof(channel_id_t))
-
-#endif
+#endif /* PROTO_H__ */
