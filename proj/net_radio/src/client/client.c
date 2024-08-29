@@ -2,6 +2,17 @@
 #include <stdlib.h>
 #include <getopt.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
+#include <net/if.h>
+
+#include <unistd.h>
+
 #include "client.h"
 
 #define DEFAULT_PLAYER_CMD "/usr/local/bin/mpg123 > /dev/null"
@@ -62,9 +73,74 @@ int main(int argc, char *argv[])
         }
     }
 
-    socket
-    pipe
-    fork
+    int sd;
+
+    sd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sd < 0)
+    {
+        perror("socket()");
+        exit(1);
+    }
+
+    struct ip_mreqn optval;
+
+    inet_pton(AF_INET, client_conf.mutilgroup, &optval.imr_multiaddr);
+    inet_pton(AF_INET, "0.0.0.0", &optval.imr_address);
+    optval.imr_ifindex = if_nametoindex("eth0");
+
+    if (setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &optval, sizeof(optval)) < 0)
+    {
+        perror("setsockopt()");
+        exit(1);
+    }
+
+    int val = 1;
+    if (setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &val, sizeof(val)) < 0)
+    {
+        perror("setsockopt()");
+        exit(1);
+    }
+
+//    bind
+
+    recvfrom
+
+    close
+
+    int pd[2];
+    pid_t pid;
+
+    if (pipe(pd) < 2)
+    {
+        perror("pipe()");
+        exit(1);
+    }
+
+    pid = fork();
+    if (pid < 0)
+    {
+        perror("fork()");
+        exit(1);
+    }
+
+    if (pid == 0)
+    {
+        close(pd[1]);
+        dup2(pd[0], 1);
+        if (pd[0] > 0)
+        {
+            close(pd[0]);
+        }
+
+        execl("/bin/bash", "sh", "-c", client_conf.player_cmd, NULL);
+        perror("execl()");
+        exit(1);
+    }
+    else
+    {
+        close(pd[0]);
+    }
+
 
     exit(0);
 }
