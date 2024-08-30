@@ -140,7 +140,20 @@ int main(int argc, char *argv[])
     {
         close(pd[0]);
     }
+    struct msg_list_st *msg_lst;
 
+    msg_lst = malloc(MSG_LIST_MAX);
+    if (msg_list == NULL)
+    {
+        perror("malloc()");
+        exit(1);
+    }
+
+
+    while (1)
+    {
+        recvfrom(sd, 
+    }
 
     exit(0);
 }

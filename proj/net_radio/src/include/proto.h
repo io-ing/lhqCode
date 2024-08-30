@@ -30,10 +30,11 @@ struct msg_channel_st
 struct msg_listentry_st
 {
     channel_id_t channel_id;
+    uint8_t len;
     uint8_t description[1];
 }__attribute__((packed));
 
-Sstruct msg_list_st
+struct msg_list_st
 {
     /* must be LIST_CHANNEL_ID */
     channel_id_t channel_id;
