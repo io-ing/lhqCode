@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-typedef uint8_t channel_id_t
+typedef uint8_t channel_id_t;
 
 #endif /* SITE_TYPE_H__ */

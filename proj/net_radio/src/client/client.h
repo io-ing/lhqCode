@@ -1,9 +1,12 @@
-erd a  eDEBUG#include "proto.h"
+#ifndef CLIENT_H__
+#define CLIENT_H__
+
+#include "proto.h"
 
 struct client_conf_st
 {
     char *recvport;
-    char *multigroup;
+    char *mutilgroup;
     char *player_cmd;
 };
 
