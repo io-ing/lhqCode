@@ -24,6 +24,9 @@
 #include <net/if.h>
 
 #include "proto.h"
+#include "media_lib.h"
+#include "thread_list.h"
+#include "thread_channel.h"
 
 #define DEFAULT_MEDIA_DIR   "/var/media"
 #define DEFAULT_INTERFACE   "eth0"
@@ -225,12 +228,47 @@ int main(int argc, char *argv[])
     }
 
     while (1)
-        ;
+    {
+        pause();
+    }
 
     /* 初始化 `socket`，设置属性 */
     socket_init();
 
     /* 获取频道信息，创建节目单和频道线程 */
+    struct media_lib_list_entry_st *media_lib_list;
+    int media_lib_size;
+    int i;
+
+    if (media_lib_get_channel_list(media_lib_list, &media_lib_size) < 0)
+    {
+    }
+
+    if (thread_list_create(media_lib_list, media_lib_size) < 0)
+    {
+    }
+
+    for (i=0; i<media_lib_size; i++)
+    {
+        if (thread_channel_create(media_lib_list, media_lib_size) < 0)
+        {
+        }
+    }
+
+    for (i=0; i<media_lib_size; i++)
+    {
+        if (thread_channel_destroy() < 0)
+        {
+        }
+    }
+
+    if (thread_list_destroy() < 0)
+    {
+    }
+
+    if (media_lib_destroy_channel_list(media_lib_list) < 0)
+    {
+    }
     /* 主进程保持运行，使用 `pause` 等待 */
 
 }
